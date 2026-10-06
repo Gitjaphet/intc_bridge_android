@@ -1,6 +1,6 @@
 diff -ru a/android/build.gradle b/android/build.gradle
---- a/android/build.gradle	2026-10-06 14:38:49.584125141 +0300
-+++ b/android/build.gradle	2026-10-06 14:38:49.587969136 +0300
+--- a/android/build.gradle	2026-10-06 15:03:02.617593953 +0300
++++ b/android/build.gradle	2026-10-06 15:03:02.621353066 +0300
 @@ -38,3 +38,6 @@
  
  dependencies {
@@ -9,8 +9,8 @@ diff -ru a/android/build.gradle b/android/build.gradle
 +    namespace 'com.example.flutter_bluetooth_serial'
 +}
 diff -ru a/android/src/main/AndroidManifest.xml b/android/src/main/AndroidManifest.xml
---- a/android/src/main/AndroidManifest.xml	2026-10-06 14:38:49.583654129 +0300
-+++ b/android/src/main/AndroidManifest.xml	2026-10-06 14:38:49.587802147 +0300
+--- a/android/src/main/AndroidManifest.xml	2026-10-06 15:03:02.617212283 +0300
++++ b/android/src/main/AndroidManifest.xml	2026-10-06 15:03:02.621152777 +0300
 @@ -1,5 +1,5 @@
  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 -  package="io.github.edufolly.flutterbluetoothserial">
@@ -18,3 +18,92 @@ diff -ru a/android/src/main/AndroidManifest.xml b/android/src/main/AndroidManife
      <uses-permission android:name="android.permission.BLUETOOTH" />
      <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
      <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+diff -ru a/android/src/main/java/io/github/edufolly/flutterbluetoothserial/FlutterBluetoothSerialPlugin.java b/android/src/main/java/io/github/edufolly/flutterbluetoothserial/FlutterBluetoothSerialPlugin.java
+--- a/android/src/main/java/io/github/edufolly/flutterbluetoothserial/FlutterBluetoothSerialPlugin.java	2026-10-06 15:03:02.617410783 +0300
++++ b/android/src/main/java/io/github/edufolly/flutterbluetoothserial/FlutterBluetoothSerialPlugin.java	2026-10-06 15:03:02.620905224 +0300
+@@ -6,6 +6,8 @@
+ import android.bluetooth.BluetoothAdapter;
+ import android.bluetooth.BluetoothDevice;
+ import android.bluetooth.BluetoothManager;
++import android.os.Handler;
++import android.os.Looper;
+ import android.content.BroadcastReceiver;
+ import android.content.Context;
+ import android.content.Intent;
+@@ -77,6 +79,8 @@
+     private Activity activity;
+     private BinaryMessenger messenger;
+     private Context activeContext;
++    // INTC : fil principal sans dépendre d'une activité (service de premier plan)
++    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+ 
+     /// Constructs the plugin instance
+     public FlutterBluetoothSerialPlugin() {
+@@ -318,6 +322,13 @@
+ //        if (true) throw new RuntimeException("FlutterBluetoothSerial Attached to engine");
+         messenger = binding.getBinaryMessenger();
+ 
++        // INTC : adaptateur et contexte disponibles même sans activité (service de premier plan)
++        activeContext = binding.getApplicationContext();
++        BluetoothManager engineBtManager = (BluetoothManager) activeContext.getSystemService(Context.BLUETOOTH_SERVICE);
++        if (engineBtManager != null) {
++            this.bluetoothAdapter = engineBtManager.getAdapter();
++        }
++
+         methodChannel = new MethodChannel(messenger, PLUGIN_NAMESPACE + "/methods");
+         methodChannel.setMethodCallHandler( new FlutterBluetoothSerialMethodCallHandler() );
+ 
+@@ -524,7 +535,7 @@
+ 
+         @Override
+         protected void onRead(byte[] buffer) {
+-            activity.runOnUiThread(() -> {
++            uiHandler.post(() -> {
+                 if (readSink != null) {
+                     readSink.success(buffer);
+                 }
+@@ -533,7 +544,7 @@
+ 
+         @Override
+         protected void onDisconnected(boolean byRemote) {
+-            activity.runOnUiThread(() -> {
++            uiHandler.post(() -> {
+                 if (byRemote) {
+                     Log.d(TAG, "onDisconnected by remote (id: " + id + ")");
+                     if (readSink != null) {
+@@ -1005,9 +1016,9 @@
+                     AsyncTask.execute(() -> {
+                         try {
+                             connection.connect(address);
+-                            activity.runOnUiThread(() -> result.success(id));
++                            uiHandler.post(() -> result.success(id));
+                         } catch (Exception ex) {
+-                            activity.runOnUiThread(() -> result.error("connect_error", ex.getMessage(), exceptionToString(ex)));
++                            uiHandler.post(() -> result.error("connect_error", ex.getMessage(), exceptionToString(ex)));
+                             connections.remove(id);
+                         }
+                     });
+@@ -1039,9 +1050,9 @@
+                         AsyncTask.execute(() -> {
+                             try {
+                                 connection.write(string.getBytes());
+-                                activity.runOnUiThread(() -> result.success(null));
++                                uiHandler.post(() -> result.success(null));
+                             } catch (Exception ex) {
+-                                activity.runOnUiThread(() -> result.error("write_error", ex.getMessage(), exceptionToString(ex)));
++                                uiHandler.post(() -> result.error("write_error", ex.getMessage(), exceptionToString(ex)));
+                             }
+                         });
+                     } else if (call.hasArgument("bytes")) {
+@@ -1049,9 +1060,9 @@
+                         AsyncTask.execute(() -> {
+                             try {
+                                 connection.write(bytes);
+-                                activity.runOnUiThread(() -> result.success(null));
++                                uiHandler.post(() -> result.success(null));
+                             } catch (Exception ex) {
+-                                activity.runOnUiThread(() -> result.error("write_error", ex.getMessage(), exceptionToString(ex)));
++                                uiHandler.post(() -> result.error("write_error", ex.getMessage(), exceptionToString(ex)));
+                             }
+                         });
+                     } else {
