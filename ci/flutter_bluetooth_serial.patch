@@ -1,0 +1,20 @@
+diff -ru a/android/build.gradle b/android/build.gradle
+--- a/android/build.gradle	2026-10-06 14:38:49.584125141 +0300
++++ b/android/build.gradle	2026-10-06 14:38:49.587969136 +0300
+@@ -38,3 +38,6 @@
+ 
+ dependencies {
+ }
++android {
++    namespace 'com.example.flutter_bluetooth_serial'
++}
+diff -ru a/android/src/main/AndroidManifest.xml b/android/src/main/AndroidManifest.xml
+--- a/android/src/main/AndroidManifest.xml	2026-10-06 14:38:49.583654129 +0300
++++ b/android/src/main/AndroidManifest.xml	2026-10-06 14:38:49.587802147 +0300
+@@ -1,5 +1,5 @@
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-  package="io.github.edufolly.flutterbluetoothserial">
++  >
+     <uses-permission android:name="android.permission.BLUETOOTH" />
+     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>

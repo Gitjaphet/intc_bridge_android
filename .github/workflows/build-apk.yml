@@ -30,12 +30,12 @@ jobs:
       - name: Dépendances
         run: flutter pub get
 
-      - name: Correctif flutter_bluetooth_serial (namespace exigé par AGP 8)
+      - name: Correctif flutter_bluetooth_serial (compatibilité AGP 8)
         run: |
-          f=$(find "${PUB_CACHE:-$HOME/.pub-cache}" "$HOME/.pub-cache" -path "*flutter_bluetooth_serial-0.4.0/android/build.gradle" 2>/dev/null | head -1)
-          echo "Fichier : $f"
-          grep -q "namespace" "$f" || sed -i "0,/^android {/s//android {\n    namespace 'com.example.flutter_bluetooth_serial'/" "$f"
-          grep -n "namespace" "$f"
+          d=$(find "${PUB_CACHE:-$HOME/.pub-cache}" "$HOME/.pub-cache" -maxdepth 4 -type d -name "flutter_bluetooth_serial-0.4.0" 2>/dev/null | head -1)
+          echo "Paquet : $d"
+          patch -p1 --forward -d "$d" < ci/flutter_bluetooth_serial.patch
+          grep -n "namespace" "$d/android/build.gradle"
 
       - name: Build APK
         env:
