@@ -11,6 +11,7 @@ import 'bluetooth_service.dart';
 import 'wifi_printer_service.dart';
 import 'escpos_service.dart';
 import 'config_service.dart';
+import 'token_service.dart';
 
 class HttpServerService {
   HttpServer? _server;
@@ -124,10 +125,11 @@ class HttpServerService {
 
     final handler = const Pipeline()
         .addMiddleware(_corsMiddleware())
+        .addMiddleware(_authMiddleware())
         .addHandler(router.call);
 
     _server = await shelf_io.serve(
-        handler, InternetAddress.anyIPv4, AppConstants.httpPort);
+        handler, InternetAddress.loopbackIPv4, AppConstants.httpPort);
   }
 
   Future<void> stop() async {
@@ -142,7 +144,7 @@ class HttpServerService {
     return (Handler handler) {
       return (Request req) async {
         if (req.method == 'OPTIONS') {
-          return Response.ok('', headers: _corsHeaders());
+          return Response(204, headers: _corsHeaders());
         }
         final response = await handler(req);
         return response.change(headers: _corsHeaders());
@@ -150,9 +152,28 @@ class HttpServerService {
     };
   }
 
+  /// Toute impression (POST) doit présenter le jeton du pont.
+  Middleware _authMiddleware() {
+    return (Handler handler) {
+      return (Request req) async {
+        if (req.method == 'POST') {
+          final expected = await TokenService.load();
+          final sent = req.headers['x-bridge-token'] ?? '';
+          if (!TokenService.matches(sent, expected)) {
+            return Response(401,
+                body: jsonEncode({'status': 'error', 'message': 'Jeton invalide'}),
+                headers: {'Content-Type': 'application/json'});
+          }
+        }
+        return handler(req);
+      };
+    };
+  }
+
   Map<String, String> _corsHeaders() => {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, X-Bridge-Token',
+        'Access-Control-Allow-Private-Network': 'true',
       };
 }
