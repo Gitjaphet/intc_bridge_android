@@ -26,6 +26,16 @@ class _IntcBridgeAppState extends State<IntcBridgeApp> {
   }
 
   Future<void> _startService() async {
+    // Notifications (Android 13+) : la notification « actif » garde le service en vie
+    final notif = await FlutterForegroundTask.checkNotificationPermission();
+    if (notif != NotificationPermission.granted) {
+      await FlutterForegroundTask.requestNotificationPermission();
+    }
+    // Batterie : sans exemption, certains fabricants tuent le service malgré tout
+    if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
+      await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+    }
+    if (await FlutterForegroundTask.isRunningService) return; // déjà actif
     await PrintServerService.start();
   }
 
