@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<print-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.intc.intc_bridge.MainActivity"
+    android:addPrintersActivity="com.intc.intc_bridge.MainActivity"
+    android:vendor="INTC" />

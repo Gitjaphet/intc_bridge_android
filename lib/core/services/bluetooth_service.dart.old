@@ -1,0 +1,47 @@
+import 'dart:typed_data';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+
+class BluetoothPrinterService {
+  BluetoothDevice? _device;
+  BluetoothCharacteristic? _characteristic;
+
+  Future<List<BluetoothDevice>> scanDevices() async {
+    final bonded = await FlutterBluePlus.bondedDevices;
+    return bonded;
+  }
+
+  Future<void> connect(String address) async {
+    final devices = await FlutterBluePlus.bondedDevices;
+    _device = devices.firstWhere((d) => d.remoteId.str == address);
+    await _device!.connect();
+
+    final services = await _device!.discoverServices();
+    for (final service in services) {
+      for (final char in service.characteristics) {
+        if (char.properties.write || char.properties.writeWithoutResponse) {
+          _characteristic = char;
+          return;
+        }
+      }
+    }
+  }
+
+  Future<void> printData(Uint8List data) async {
+    if (_characteristic == null) {
+      throw Exception('Imprimante Bluetooth non connectée');
+    }
+    const chunkSize = 512;
+    for (int i = 0; i < data.length; i += chunkSize) {
+      final chunk = data.sublist(i, i + chunkSize > data.length ? data.length : i + chunkSize);
+      await _characteristic!.write(chunk, withoutResponse: _characteristic!.properties.writeWithoutResponse);
+    }
+  }
+
+  Future<void> disconnect() async {
+    await _device?.disconnect();
+    _device = null;
+    _characteristic = null;
+  }
+
+  bool get isConnected => _device != null;
+}

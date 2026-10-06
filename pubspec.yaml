@@ -1,0 +1,32 @@
+name: intc_bridge
+description: INTC Bridge - Impression thermique Bluetooth/WiFi
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Bluetooth moderne
+  # Stockage local (config)
+  shared_preferences: ^2.2.2
+  # Serveur HTTP local
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+  # Service background Android
+  flutter_foreground_task: ^8.0.1
+  # ESC/POS commands
+  esc_pos_utils_plus: ^2.0.1
+  # Permission
+  permission_handler: ^11.3.0
+  flutter_bluetooth_serial: ^0.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
