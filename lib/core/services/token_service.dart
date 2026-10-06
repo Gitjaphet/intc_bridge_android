@@ -12,6 +12,7 @@ class TokenService {
   static Future<String> load() async {
     if (_cache != null) return _cache!;
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     var token = prefs.getString(_key);
     if (token == null || token.isEmpty) {
       final rnd = Random.secure();

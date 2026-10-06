@@ -46,10 +46,7 @@ class HttpServerService {
                   headers: {'Content-Type': 'application/json'});
             }
             // Reconnexion automatique si déconnecté
-            if (!_bluetooth.isConnected) {
-              await _bluetooth.connect(config.bluetoothAddress!);
-            }
-            await _bluetooth.printData(data);
+            await _bluetooth.printTo(config.bluetoothAddress!, data);
           } else {
             if (config.wifiIp == null) {
               return Response.internalServerError(
@@ -66,8 +63,7 @@ class HttpServerService {
             jsonEncode({'status': 'printed', 'copies': job.copies}),
             headers: {'Content-Type': 'application/json'});
       } catch (e, st) {
-        print('[RAWPRINT ERROR] $e');
-        print(st);
+        stderr.writeln('[RAWPRINT ERROR] $e\n$st');
         return Response.internalServerError(
             body: jsonEncode({'status': 'error', 'message': e.toString()}),
             headers: {'Content-Type': 'application/json'});
@@ -96,10 +92,7 @@ class HttpServerService {
                 body: jsonEncode({'status': 'error', 'message': 'Aucune imprimante configurée'}),
                 headers: {'Content-Type': 'application/json'});
           }
-          if (!_bluetooth.isConnected) {
-            await _bluetooth.connect(config.bluetoothAddress!);
-          }
-          await _bluetooth.printData(Uint8List.fromList(bodyBytes));
+          await _bluetooth.printTo(config.bluetoothAddress!, Uint8List.fromList(bodyBytes));
         } else {
           if (config.wifiIp == null) {
             return Response.internalServerError(
@@ -115,8 +108,7 @@ class HttpServerService {
             jsonEncode({'status': 'ok', 'bytes': bodyBytes.length}),
             headers: {'Content-Type': 'application/json'});
       } catch (e, st) {
-        print('[RAWPRINT ERROR] $e');
-        print(st);
+        stderr.writeln('[RAWPRINT ERROR] $e\n$st');
         return Response.internalServerError(
             body: jsonEncode({'status': 'error', 'message': e.toString()}),
             headers: {'Content-Type': 'application/json'});
@@ -133,7 +125,6 @@ class HttpServerService {
   }
 
   Future<void> stop() async {
-    _bluetooth.disconnect();
     await _server?.close(force: true);
     _server = null;
   }

@@ -7,6 +7,7 @@ class ConfigService {
 
   Future<PrinterConfig> load() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload(); // voir les changements faits par l'écran
     final json = prefs.getString(_key);
     if (json == null) return const PrinterConfig();
     return PrinterConfig.fromJson(jsonDecode(json));

@@ -1,9 +1,21 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/models/printer_config.dart';
 import '../../core/services/config_service.dart';
+import '../../core/services/token_service.dart';
+
+/// ESC @ (init), centré, texte, avance papier, coupe — même ticket que le pont PC.
+final List<int> _testTicket = [
+  0x1B, 0x40, 0x1B, 0x61, 0x01,
+  ...ascii.encode("INTC Bridge Android\nTest d'impression OK\n\n\n\n"),
+  0x1D, 0x56, 0x42, 0x00,
+];
 
 class ConfigScreen extends StatefulWidget {
   const ConfigScreen({super.key});
@@ -18,6 +30,8 @@ class _ConfigScreenState extends State<ConfigScreen> {
   List<BluetoothDevice> _devices = [];
   bool _isScanning = false;
   bool _isSaving = false;
+  bool _isTesting = false;
+  String _token = '';
 
   final TextEditingController _wifiIpController = TextEditingController();
   final TextEditingController _wifiPortController = TextEditingController();
@@ -26,6 +40,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
   void initState() {
     super.initState();
     _requestPermissionsAndLoad();
+    TokenService.load().then((t) {
+      if (mounted) setState(() => _token = t);
+    });
   }
 
   Future<void> _requestPermissionsAndLoad() async {
@@ -68,6 +85,34 @@ class _ConfigScreenState extends State<ConfigScreen> {
         const SnackBar(content: Text('Configuration sauvegardée !')),
       );
     }
+  }
+
+  /// Imprime via le vrai chemin (HTTP + jeton), exactement comme le fera Odoo.
+  Future<void> _testPrint() async {
+    setState(() => _isTesting = true);
+    String message;
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+    try {
+      final req = await client.postUrl(
+          Uri.parse('http://127.0.0.1:${AppConstants.httpPort}/rawprint'));
+      req.headers.set('X-Bridge-Token', _token);
+      req.headers.contentType = ContentType.binary;
+      req.add(_testTicket);
+      final res = await req.close();
+      final body = jsonDecode(await res.transform(utf8.decoder).join());
+      message = res.statusCode == 200
+          ? "Ticket envoyé. S'il est sorti, la configuration est bonne."
+          : 'Erreur : ${body['message']}';
+    } on SocketException {
+      message = "Le service d'impression n'est pas démarré.";
+    } catch (e) {
+      message = 'Erreur : $e';
+    } finally {
+      client.close();
+    }
+    if (!mounted) return;
+    setState(() => _isTesting = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -266,6 +311,39 @@ class _ConfigScreenState extends State<ConfigScreen> {
               ),
             ],
 
+            const SizedBox(height: 32),
+            const Text('3. Jeton pour Odoo',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text(
+                'Odoo le demande une seule fois, à la première impression depuis ce téléphone.',
+                style: TextStyle(fontSize: 13, color: Colors.grey)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.only(left: 16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(_token,
+                        style: const TextStyle(fontFamily: 'monospace')),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy, color: Colors.blue),
+                    tooltip: 'Copier',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: _token));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Jeton copié')));
+                    },
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 40),
 
             SizedBox(
@@ -284,6 +362,20 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     : const Text('SAUVEGARDER',
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: _isTesting ? null : _testPrint,
+                icon: const Icon(Icons.receipt_long),
+                label: Text(_isTesting ? 'ENVOI…' : 'IMPRIMER UN TICKET DE TEST'),
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30)),
+                ),
               ),
             ),
           ],

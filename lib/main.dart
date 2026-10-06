@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'core/services/token_service.dart';
 import 'features/config/config_screen.dart';
 import 'features/print_server/print_server_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await TokenService.load(); // le jeton existe avant que le serveur démarre
   PrintServerService.initForegroundTask();
   runApp(const IntcBridgeApp());
 }
